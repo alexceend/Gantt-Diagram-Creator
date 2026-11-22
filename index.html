@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gantt a mano</title>
+<style>
+:root{--bg:#eff1f5;--panel:#e6e9ef;--text:#4c4f69;--muted:#5c5f77;--line:#bcc0cc;--chip:#ccd0da;--accent:#8839ef;--accent2:#179299;--on:#eff1f5;--err:#d20f39;--glass:rgba(255,255,255,.55);--glass-h:rgba(255,255,255,.8);--edge:rgba(255,255,255,.95)}
+[data-theme=mocha]{--bg:#181825;--panel:#1e1e2e;--text:#cdd6f4;--muted:#a6adc8;--line:#45475a;--chip:#313244;--accent:#cba6f7;--accent2:#94e2d5;--on:#11111b;--err:#f38ba8}
+[data-theme=macchiato]{--bg:#1e2030;--panel:#24273a;--text:#cad3f5;--muted:#a5adcb;--line:#494d64;--chip:#363a4f;--accent:#c6a0f6;--accent2:#8bd5ca;--on:#181926;--err:#ed8796}
+[data-theme=frappe]{--bg:#292c3c;--panel:#303446;--text:#c6d0f5;--muted:#a5adce;--line:#51576d;--chip:#414559;--accent:#ca9ee6;--accent2:#81c8be;--on:#232634;--err:#e78284}
+[data-theme=mocha],[data-theme=macchiato],[data-theme=frappe]{--glass:rgba(255,255,255,.10);--glass-h:rgba(255,255,255,.20);--edge:rgba(255,255,255,.30)}
+*{box-sizing:border-box;font-weight:700}
+html,body{height:100%;margin:0}
+body{display:grid;grid-template-columns:min(520px,100vw) 1fr;grid-template-rows:auto 1fr;background:var(--bg);color:var(--text);font:700 14px "Segoe UI",system-ui,sans-serif}
+header{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0 auto 0 0}
+.btn{min-height:34px;padding:0 16px;border-radius:999px;border:1px solid var(--edge);background:var(--glass);color:var(--text);cursor:pointer;font:700 14px "Segoe UI",system-ui,sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(255,255,255,.1),0 2px 10px rgba(0,0,0,.18);transition:transform .12s,background .12s,box-shadow .12s}
+.btn:hover{background:var(--glass-h);transform:translateY(-1px)}
+.btn:active{transform:scale(.96)}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent2);outline-offset:2px}
+.btn.primary,.btn.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--on);border-color:transparent}
+.btn.small{min-height:28px;padding:0 10px}
+aside{overflow:auto;padding:14px;background:var(--panel);border-right:1px solid var(--line)}
+section{margin-bottom:16px}
+h2{font-size:13px;margin:0 0 8px;color:var(--muted)}
+label{display:block;margin:6px 0 3px;color:var(--muted)}
+input[type=text],input[type=number],select{width:100%;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:var(--chip);color:var(--text);font:700 13px "Segoe UI",system-ui,sans-serif;min-width:0}
+input.bad{border-color:var(--err)}
+input[type=color]{width:30px;height:30px;padding:0;border:2px solid var(--line);border-radius:8px;background:none;cursor:pointer}
+input[type=checkbox]{accent-color:var(--accent)}
+.grid{display:grid;gap:6px;align-items:center}
+.r{grid-template-columns:1.6fr 1fr 1fr auto auto}
+.m{grid-template-columns:1.6fr 1fr auto auto}
+.row{display:contents}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px}
+.x:hover{color:var(--err)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#msg{color:var(--err);min-height:1.2em;margin:6px 0}
+main{position:relative;overflow:auto}
+canvas{display:block}
+#load{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg);z-index:2}
+#zoom{position:fixed;right:16px;bottom:16px;display:flex;gap:6px;z-index:3}
+@media(max-width:820px){body{grid-template-columns:1fr;grid-template-rows:auto auto 70vh}aside{max-height:60vh;border-right:0}}
+@media(prefers-reduced-motion:reduce){.btn{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Gantt a mano</h1>
+  <button class="btn" id="bNew">Nuevo</button>
+  <button class="btn" id="bOpen">Abrir…</button>
+  <button class="btn" id="bSave">Guardar .gantt</button>
+  <button class="btn primary" id="bPng">PNG</button>
+  <button class="btn primary" id="bJpg">JPG</button>
+  <select id="theme" style="width:auto" aria-label="Tema"><option value="">Tema del sistema</option><option>mocha</option><option>macchiato</option><option>frappe</option><option value="latte">latte</option></select>
+  <input type="file" id="file" accept=".gantt,.json" hidden>
+</header>
+<aside>
+  <section>
+    <h2>Diagrama</h2>
+    <label for="title">Título</label><input type="text" id="title" data-k="title">
+    <label>Escala</label>
+    <div class="pills"><button class="btn small" data-scale="dates">Fechas</button><button class="btn small" data-scale="weeks">Semanas</button></div>
+    <div id="startBox"><label for="start">Inicio del eje (semana)</label><input type="text" id="start" data-k="start" placeholder="1"></div>
+  </section>
+  <section>
+    <h2>Apariencia</h2>
+    <div class="two">
+      <div><label>Fondo</label><input type="color" id="paper"></div>
+      <div><label>Texto</label><input type="color" id="ink"></div>
+    </div>
+    <label><input type="checkbox" id="bold"> Negrita en el diagrama</label>
+    <label for="tscale">Tamaño del texto: <span id="tsv"></span> %</label><input type="range" id="tscale" min="60" max="200" step="5" style="width:100%">
+    <label>Tamaño del diagrama</label>
+    <div class="two"><select id="sizemode"><option value="auto">Ajustar a la ventana</option><option value="custom">Personalizado</option></select>
+      <div class="two" id="sizebox" hidden><input type="number" id="sw" data-k="size" min="400" max="6000"><input type="number" id="sh" data-k="size" min="400" max="6000"></div></div>
+  </section>
+  <section>
+    <h2>Etapas</h2>
+    <div class="grid r" id="rows"></div>
+    <button class="btn small" id="addR" style="margin-top:8px">+ Añadir etapa</button>
+  </section>
+  <section>
+    <h2>Hitos</h2>
+    <div class="grid m" id="miles"></div>
+    <button class="btn small" id="addM" style="margin-top:8px">+ Añadir hito</button>
+    <button class="btn small" id="allM" style="margin-top:8px">Mismo color para todos</button>
+  </section>
+  <div id="msg" role="alert"></div>
+</aside>
+<main id="main"><div id="load">Cargando Python (solo la primera vez)…</div><canvas id="cv"></canvas></main>
+<div id="zoom"><button class="btn small" id="zo" aria-label="Alejar">−</button><button class="btn small" id="zr">100 %</button><button class="btn small" id="zi" aria-label="Acercar">+</button></div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
+<script>
+const $ = s => document.querySelector(s), FAMILY = '"Ink Free","Segoe Print","Kalam","Comic Sans MS",cursive';
+let py, S, last = null, zoom = 1, dirty = false, timer = 0;
+const MILE = "#d20f39", TINTAS = ["#89b4fa", "#a6e3a1", "#f9e2af", "#f38ba8", "#cba6f7", "#94e2d5"];
+
+// medida de texto para el núcleo en Python (misma fuente que se dibuja)
+const mctx = document.createElement("canvas").getContext("2d");
+globalThis.measureText = (t, size, bold) => { mctx.font = `${bold ? "bold " : ""}${size}px ${FAMILY}`; return mctx.measureText(t).width; };
+
+const J = o => JSON.stringify(o), today = (d = 0) => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
+const style = () => S.style;
+
+function load(d) {
+  S = { title: d.title, scale: d.scale, start: d.start_week ? String(d.start_week) : "", rows: d.rows.map(x => ({ ...x })), miles: d.miles.map(x => ({ ...x })),
+        style: { paper: d.paper, ink: d.ink, bold: d.bold, tscale: d.tscale, size: d.size } };
+  syncForm(); dirty = false; update(true);
+}
+function syncForm() {
+  $("#title").value = S.title; $("#start").value = S.start; $("#startBox").hidden = S.scale !== "weeks";
+  document.querySelectorAll("[data-scale]").forEach(b => b.classList.toggle("on", b.dataset.scale === S.scale));
+  const st = S.style; $("#paper").value = st.paper; $("#ink").value = st.ink; $("#bold").checked = st.bold; $("#tscale").value = st.tscale; $("#tsv").textContent = st.tscale;
+  $("#sizemode").value = st.size ? "custom" : "auto"; $("#sizebox").hidden = !st.size; if (st.size) { $("#sw").value = st.size[0]; $("#sh").value = st.size[1]; }
+  lists();
+}
+function field(list, i, k, ph) {
+  const e = document.createElement("input"); e.type = "text"; e.value = list[i][k]; e.placeholder = ph || ""; e.dataset.k = `${list === S.rows ? "r" : "m"}.${i}.${k}`;
+  e.setAttribute("aria-label", k); e.oninput = () => { list[i][k] = e.value; update(); }; return e;
+}
+function lists() {
+  const wk = S.scale === "weeks", R = $("#rows"), M = $("#miles"); R.replaceChildren(); M.replaceChildren();
+  S.rows.forEach((r, i) => {
+    const c = document.createElement("input"); c.type = "color"; c.value = r.color; c.title = "Color de la etapa"; c.oninput = () => { r.color = c.value; update(); };
+    const x = btn("×", () => { S.rows.splice(i, 1); lists(); update(); }, "x", "Quitar etapa");
+    R.append(field(S.rows, i, "name", "Nombre"), field(S.rows, i, "start", wk ? "3 o 3-2" : "AAAA-MM-DD"), field(S.rows, i, "end", wk ? "5" : "AAAA-MM-DD"), c, x);
+  });
+  S.miles.forEach((m, i) => {
+    const c = document.createElement("input"); c.type = "color"; c.value = m.color; c.title = "Color de la línea del hito"; c.oninput = () => { m.color = c.value; update(); };
+    const x = btn("×", () => { S.miles.splice(i, 1); lists(); update(); }, "x", "Quitar hito");
+    M.append(field(S.miles, i, "name", "Nombre"), field(S.miles, i, "date", wk ? "4" : "AAAA-MM-DD"), c, x);
+  });
+}
+function btn(t, f, cls = "", label = "") { const b = document.createElement("button"); b.className = cls; b.textContent = t; b.onclick = f; if (label) b.setAttribute("aria-label", label); return b; }
+
+function paperSize() {
+  const z = style().size; if (z) return z;
+  const m = $("#main"); return [Math.max(m.clientWidth - 56, 320), Math.max(m.clientHeight - 56, 240)];
+}
+function request(size) { return J({ title: S.title, rows: S.rows, miles: S.miles, scale: S.scale, start: S.start, style: S.style, w: size[0], h: size[1] }); }
+
+function update(now) { dirty = dirty || !now; clearTimeout(timer); timer = setTimeout(refresh, now ? 0 : 120); }
+function refresh() {
+  if (!py) return;
+  S.style.size = $("#sizemode").value === "custom" ? [parseInt($("#sw").value) || 0, parseInt($("#sh").value) || 0] : null;
+  const r = JSON.parse(py.compute(request(paperSize())));
+  document.querySelectorAll("input.bad").forEach(e => e.classList.remove("bad"));
+  $("#msg").textContent = r.error ? r.error.slice(0, 220) : "";
+  if (r.error) { if (r.where) { const e = document.querySelector(`[data-k="${r.where[0] === "title" || r.where[0] === "start" || r.where[0] === "size" ? r.where[0] : r.where.join(".")}"]`); if (e) e.classList.add("bad"); if (r.where[0] === "size") $("#sw").classList.add("bad"), $("#sh").classList.add("bad"); } return; }
+  last = r; draw();
+}
+
+function paint(ctx, r, z, ox, oy, W, H) {
+  const [fl, ln, so, tx] = r.parts, d = r.data, bold = d.bold ? "bold " : "";
+  const P = pts => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(ox + x * z, oy + y * z) : ctx.moveTo(ox + x * z, oy + y * z)); };
+  ctx.lineJoin = ctx.lineCap = "round";
+  for (const [p, c] of fl) { P(p); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); }
+  ctx.lineWidth = Math.max(1, 2 * z);
+  for (const [p, c] of ln) { P(p); ctx.strokeStyle = c; ctx.stroke(); }
+  for (const [p, c] of so) { P(p); ctx.closePath(); ctx.fillStyle = ctx.strokeStyle = c; ctx.fill(); ctx.stroke(); }
+  for (const [x, y, t, sz, a, c] of tx) {
+    ctx.font = `${bold}${Math.max(2, Math.round(sz * z))}px ${FAMILY}`; ctx.fillStyle = c;
+    ctx.textAlign = a.includes("w") ? "left" : a.includes("e") ? "right" : "center";
+    ctx.textBaseline = a === "w" || a === "e" ? "middle" : a.includes("n") ? "top" : "bottom";
+    ctx.fillText(t, ox + x * z, oy + y * z);
+  }
+  if (r.empty) { ctx.font = `${bold}${Math.round(24 * z)}px ${FAMILY}`; ctx.fillStyle = d.ink + "99"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Añade etapas e hitos en el panel de la izquierda", ox + W * z / 2, oy + H * z / 2 + 30 * z); }
+}
+function draw() {
+  if (!last) return;
+  const m = $("#main"), cv = $("#cv"), [W, H] = paperSize(), M = 28, dpr = devicePixelRatio || 1;
+  const cw = Math.max(m.clientWidth, W * zoom + 2 * M), ch = Math.max(m.clientHeight, H * zoom + 2 * M);
+  cv.width = cw * dpr; cv.height = ch * dpr; cv.style.width = cw + "px"; cv.style.height = ch + "px";
+  const ctx = cv.getContext("2d"); ctx.scale(dpr, dpr);
+  ctx.fillStyle = getComputedStyle(document.body).backgroundColor; ctx.fillRect(0, 0, cw, ch);
+  const ox = Math.max(M, (cw - W * zoom) / 2), oy = Math.max(M, (ch - H * zoom) / 2);
+  ctx.fillStyle = last.data.paper; ctx.fillRect(ox, oy, W * zoom, H * zoom);
+  paint(ctx, last, zoom, ox, oy, W, H);
+  $("#zr").textContent = Math.round(zoom * 100) + " %";
+}
+
+function download(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function valid() { refresh(); return !$("#msg").textContent; }
+function exportImg(type) {
+  if (!valid()) return alert("Corrige los errores marcados antes de exportar");
+  const [W0, H0] = paperSize(), W = style().size ? W0 : Math.max(W0, 900), H = style().size ? H0 : Math.max(H0, 520), pad = 24, k = 2;
+  const r = JSON.parse(py.compute(request([W, H]))), c = document.createElement("canvas"); c.width = (W + 2 * pad) * k; c.height = (H + 2 * pad) * k;
+  const ctx = c.getContext("2d"); ctx.scale(k, k); ctx.fillStyle = r.data.paper; ctx.fillRect(0, 0, c.width, c.height);
+  paint(ctx, r, 1, pad, pad, W, H);
+  c.toBlob(b => download(b, "gantt." + (type === "image/jpeg" ? "jpg" : "png")), type, .95);
+}
+function save() {
+  if (!valid()) return alert("Corrige los errores marcados antes de guardar");
+  download(new Blob([J({ app: "gantt", version: 2, ...last.data }, null, 2)], { type: "application/json" }), "gantt.gantt"); dirty = false;
+}
+const sure = () => !dirty || confirm("Hay cambios sin guardar. ¿Descartarlos?");
+async function openFile(f) {
+  if (!f || !sure()) return;
+  const r = JSON.parse(py.parse(await f.text()));
+  r.error ? alert(r.error) : load({ ...r.data, start_week: r.data.start_week });
+}
+function setScale(n) {
+  if (n === S.scale) return;
+  const r = JSON.parse(py.switch(J({ title: S.title, rows: S.rows, miles: S.miles, scale: S.scale })));
+  if (r.error) { $("#msg").textContent = r.error; return; }
+  S.rows = r.rows; S.miles = r.miles; S.scale = n; S.start = ""; syncForm(); update();
+}
+function setZoom(z) { zoom = Math.min(4, Math.max(.67, z)); draw(); }
+
+$("#title").oninput = e => { S.title = e.target.value; update(); };
+$("#start").oninput = e => { S.start = e.target.value; update(); };
+document.querySelectorAll("[data-scale]").forEach(b => b.onclick = () => setScale(b.dataset.scale));
+$("#paper").oninput = e => { S.style.paper = e.target.value; update(); };
+$("#ink").oninput = e => { S.style.ink = e.target.value; update(); };
+$("#bold").onchange = e => { S.style.bold = e.target.checked; update(); };
+$("#tscale").oninput = e => { S.style.tscale = +e.target.value; $("#tsv").textContent = e.target.value; update(); };
+$("#sizemode").onchange = e => { $("#sizebox").hidden = e.target.value !== "custom"; if (!$("#sw").value) { const [w, h] = paperSize(); $("#sw").value = Math.max(400, w); $("#sh").value = Math.max(400, h); } update(); };
+$("#sw").oninput = $("#sh").oninput = () => update();
+$("#addR").onclick = () => { const l = S.rows.at(-1), wk = S.scale === "weeks"; S.rows.push({ name: "", start: wk ? "1" : (l ? l.end : today()), end: wk ? "2" : today(7), color: TINTAS[S.rows.length % 6] }); lists(); update(); };
+$("#addM").onclick = () => { S.miles.push({ name: "", date: S.scale === "weeks" ? "1" : today(), color: MILE }); lists(); update(); };
+$("#allM").onclick = () => { if (S.miles.length) { S.miles.forEach(m => m.color = S.miles[0].color); lists(); update(); } };
+$("#bNew").onclick = () => sure() && load({ title: "", rows: [], miles: [], scale: "dates", start_week: null, paper: "#ffffff", ink: "#4c4f69", bold: true, tscale: 100, size: null });
+$("#bOpen").onclick = () => $("#file").click();
+$("#file").onchange = e => { openFile(e.target.files[0]); e.target.value = ""; };
+$("#bSave").onclick = save; $("#bPng").onclick = () => exportImg("image/png"); $("#bJpg").onclick = () => exportImg("image/jpeg");
+$("#zi").onclick = () => setZoom(zoom * 1.25); $("#zo").onclick = () => setZoom(zoom / 1.25); $("#zr").onclick = () => setZoom(1);
+$("#main").addEventListener("wheel", e => { if (e.ctrlKey) { e.preventDefault(); setZoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
+$("#theme").onchange = e => { e.target.value ? document.documentElement.dataset.theme = e.target.value : delete document.documentElement.dataset.theme; if (last) draw(); };
+addEventListener("resize", () => S && update(true));
+addEventListener("beforeunload", e => { if (dirty) e.preventDefault(); });
+addEventListener("keydown", e => { if (!(e.ctrlKey || e.metaKey)) return; const k = e.key.toLowerCase(); if (k === "s") { e.preventDefault(); save(); } else if (k === "o") { e.preventDefault(); $("#file").click(); } else if (k === "e") { e.preventDefault(); exportImg("image/png"); } });
+addEventListener("dragover", e => e.preventDefault()); addEventListener("drop", e => { e.preventDefault(); openFile(e.dataTransfer.files[0]); });
+if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme = "mocha";
+matchMedia("(prefers-color-scheme: dark)").onchange = e => { if (!$("#theme").value) { e.matches ? document.documentElement.dataset.theme = "mocha" : delete document.documentElement.dataset.theme; draw(); } };
+
+(async () => {
+  py = await loadPyodide();
+  for (const f of ["gantt_core.py", "glue.py"]) py.FS.writeFile(f, await (await fetch(f)).text());
+  const g = py.pyimport("glue"); py = { compute: g.compute, switch: g.switch, parse: g.parse, sample: g.sample };
+  await document.fonts.ready; $("#load").remove();
+  load(JSON.parse(py.sample()));
+})().catch(e => { $("#load").textContent = "No se pudo cargar Python: " + e; });
+</script>
+</body>
+</html>
