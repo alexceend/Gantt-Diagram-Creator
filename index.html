@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gantt a mano</title>
+<title>Creador de Diagramas de Gantt Online</title>
 <style>
-:root{--bg:#eff1f5;--panel:#e6e9ef;--text:#4c4f69;--muted:#5c5f77;--line:#bcc0cc;--chip:#ccd0da;--accent:#8839ef;--accent2:#179299;--on:#eff1f5;--err:#d20f39;--glass:rgba(255,255,255,.55);--glass-h:rgba(255,255,255,.8);--edge:rgba(255,255,255,.95)}
-[data-theme=mocha]{--bg:#181825;--panel:#1e1e2e;--text:#cdd6f4;--muted:#a6adc8;--line:#45475a;--chip:#313244;--accent:#cba6f7;--accent2:#94e2d5;--on:#11111b;--err:#f38ba8}
-[data-theme=macchiato]{--bg:#1e2030;--panel:#24273a;--text:#cad3f5;--muted:#a5adcb;--line:#494d64;--chip:#363a4f;--accent:#c6a0f6;--accent2:#8bd5ca;--on:#181926;--err:#ed8796}
-[data-theme=frappe]{--bg:#292c3c;--panel:#303446;--text:#c6d0f5;--muted:#a5adce;--line:#51576d;--chip:#414559;--accent:#ca9ee6;--accent2:#81c8be;--on:#232634;--err:#e78284}
+:root{--bg:#eff1f5;--panel:#e6e9ef;--text:#4c4f69;--muted:#5c5f77;--line:#bcc0cc;--chip:#ccd0da;--accent:#8839ef;--accent2:#179299;--blue:#1e66f5;--on:#eff1f5;--err:#d20f39;--glass:rgba(255,255,255,.55);--glass-h:rgba(255,255,255,.8);--edge:rgba(255,255,255,.95)}
+[data-theme=mocha]{--bg:#181825;--panel:#1e1e2e;--text:#cdd6f4;--muted:#a6adc8;--line:#45475a;--chip:#313244;--accent:#cba6f7;--accent2:#94e2d5;--blue:#89b4fa;--on:#11111b;--err:#f38ba8}
+[data-theme=macchiato]{--bg:#1e2030;--panel:#24273a;--text:#cad3f5;--muted:#a5adcb;--line:#494d64;--chip:#363a4f;--accent:#c6a0f6;--accent2:#8bd5ca;--blue:#8aadf4;--on:#181926;--err:#ed8796}
+[data-theme=frappe]{--bg:#292c3c;--panel:#303446;--text:#c6d0f5;--muted:#a5adce;--line:#51576d;--chip:#414559;--accent:#ca9ee6;--accent2:#81c8be;--blue:#8caaee;--on:#232634;--err:#e78284}
 [data-theme=mocha],[data-theme=macchiato],[data-theme=frappe]{--glass:rgba(255,255,255,.10);--glass-h:rgba(255,255,255,.20);--edge:rgba(255,255,255,.30)}
 *{box-sizing:border-box;font-weight:700}
 html,body{height:100%;margin:0}
@@ -19,7 +19,7 @@ header h1{font-size:16px;margin:0 auto 0 0}
 .btn:hover{background:var(--glass-h);transform:translateY(-1px)}
 .btn:active{transform:scale(.96)}
 .btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent2);outline-offset:2px}
-.btn.primary,.btn.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--on);border-color:transparent}
+.btn.primary,.btn.on{background:var(--blue);color:var(--on);border-color:transparent}
 .btn.small{min-height:28px;padding:0 10px}
 aside{overflow:auto;padding:14px;background:var(--panel);border-right:1px solid var(--line)}
 section{margin-bottom:16px}
@@ -33,6 +33,7 @@ input[type=checkbox]{accent-color:var(--accent)}
 .r{grid-template-columns:1.6fr 1fr 1fr auto auto}
 .m{grid-template-columns:1.6fr 1fr auto auto}
 .row{display:contents}
+.hd{font-size:12px;color:var(--muted)}
 .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px}
 .x:hover{color:var(--err)}
 .pills{display:flex;gap:6px;flex-wrap:wrap}
@@ -48,7 +49,7 @@ canvas{display:block}
 </head>
 <body>
 <header>
-  <h1>Gantt a mano</h1>
+  <h1>Creador de Diagramas de Gantt Online</h1>
   <button class="btn" id="bNew">Nuevo</button>
   <button class="btn" id="bOpen">Abrir…</button>
   <button class="btn" id="bSave">Guardar .gantt</button>
@@ -124,6 +125,7 @@ function field(list, i, k, ph) {
 }
 function lists() {
   const wk = S.scale === "weeks", R = $("#rows"), M = $("#miles"); R.replaceChildren(); M.replaceChildren();
+  R.append(...hd("Nombre", "Inicio", "Fin", "Color", "")); M.append(...hd("Nombre", "Fecha", "Color", ""));
   S.rows.forEach((r, i) => {
     const c = document.createElement("input"); c.type = "color"; c.value = r.color; c.title = "Color de la etapa"; c.oninput = () => { r.color = c.value; update(); };
     const x = btn("×", () => { S.rows.splice(i, 1); lists(); update(); }, "x", "Quitar etapa");
@@ -135,6 +137,7 @@ function lists() {
     M.append(field(S.miles, i, "name", "Nombre"), field(S.miles, i, "date", wk ? "4" : "AAAA-MM-DD"), c, x);
   });
 }
+function hd(...t) { return t.map(x => Object.assign(document.createElement("span"), { className: "hd", textContent: x })); }
 function btn(t, f, cls = "", label = "") { const b = document.createElement("button"); b.className = cls; b.textContent = t; b.onclick = f; if (label) b.setAttribute("aria-label", label); return b; }
 
 function paperSize() {
