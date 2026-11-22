@@ -45,7 +45,10 @@ canvas{display:block}
 #load{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg);z-index:2}
 #zoom{position:fixed;right:16px;bottom:16px;display:flex;gap:6px;z-index:3}
 @media(max-width:1100px){body{grid-template-columns:clamp(340px,42vw,520px) 1fr}}
-@media(max-width:820px){body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 70vh;grid-template-rows:auto auto 70dvh}aside{max-height:60vh;max-height:60dvh;border-right:0}
+#tabs{display:none}
+@media(max-width:820px){body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);height:100vh;height:100dvh}aside{border-right:0}
+  #tabs{display:flex;gap:6px;flex:1 1 100%}#tabs .btn{flex:1}
+  body[data-view=diagram] aside,body[data-view=edit] main,body[data-view=edit] #zoom{display:none}
   header{padding:8px 10px}header h1{flex:1 1 100%;font-size:15px}.btn{min-height:40px;padding:0 12px}.btn.small{min-height:36px}
   aside{padding:10px}input[type=text],input[type=number],select{font-size:16px;padding:8px}input[type=color]{width:40px;height:36px}.x{font-size:20px;padding:6px 10px}
   #zoom{right:10px;bottom:10px}}
@@ -67,6 +70,7 @@ canvas{display:block}
   <button class="btn primary" id="bPng">PNG</button>
   <button class="btn primary" id="bJpg">JPG</button>
   <select id="theme" style="width:auto" aria-label="Tema"><option value="">Tema del sistema</option><option>mocha</option><option>macchiato</option><option>frappe</option><option value="latte">latte</option></select>
+  <div id="tabs"><button class="btn" data-view="edit">Editar</button><button class="btn on" data-view="diagram">Diagrama</button></div>
   <input type="file" id="file" accept=".gantt,.json" hidden>
 </header>
 <aside>
@@ -244,6 +248,8 @@ $("#bSave").onclick = save; $("#bPng").onclick = () => exportImg("image/png"); $
 $("#zi").onclick = () => setZoom(zoom * 1.25); $("#zo").onclick = () => setZoom(zoom / 1.25); $("#zr").onclick = () => setZoom(1);
 $("#main").addEventListener("wheel", e => { if (e.ctrlKey) { e.preventDefault(); setZoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
 $("#theme").onchange = e => { e.target.value ? document.documentElement.dataset.theme = e.target.value : delete document.documentElement.dataset.theme; if (last) draw(); };
+document.body.dataset.view = "diagram";
+document.querySelectorAll("#tabs .btn").forEach(b => b.onclick = () => { document.body.dataset.view = b.dataset.view; document.querySelectorAll("#tabs .btn").forEach(t => t.classList.toggle("on", t === b)); S && update(true); });
 addEventListener("resize", () => S && update(true));
 addEventListener("beforeunload", e => { if (dirty) e.preventDefault(); });
 addEventListener("keydown", e => { if (!(e.ctrlKey || e.metaKey)) return; const k = e.key.toLowerCase(); if (k === "s") { e.preventDefault(); save(); } else if (k === "o") { e.preventDefault(); $("#file").click(); } else if (k === "e") { e.preventDefault(); exportImg("image/png"); } });
